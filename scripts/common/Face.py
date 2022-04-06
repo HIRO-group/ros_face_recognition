@@ -12,7 +12,7 @@ class Face():
         self.distance=distance
     def encode(self,code):
         self.encoding=code
-        print'ee'
+        print('ee')
         
 
         

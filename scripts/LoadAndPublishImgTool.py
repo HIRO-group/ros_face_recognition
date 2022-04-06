@@ -39,9 +39,9 @@ def LoadImgAndPublish():
     try:
         learn_from_img_srv = rospy.ServiceProxy('learn_face_from_img', LearnFaceFromImg)
         resp1 = learn_from_img_srv("HOwaRD!!!",msg_im1)
-        print "service:"+str(resp1.result)
-    except rospy.ServiceException, e:
-        print "Service call failed: %s"%e
+        print ("service:"+str(resp1.result))
+    except rospy.ServiceException as e:
+        print ("Service call failed: %s", e)
 
     #Publish image
     pub.publish(msg_im1)
@@ -53,9 +53,9 @@ def LoadImgAndPublish():
     try:
         detect_from_img_srv = rospy.ServiceProxy('detect_face_from_img', DetectFaceFromImg)
         resp2 = detect_from_img_srv(msg_im2,False)
-        print "service:"+str(resp2.entityList)
-    except rospy.ServiceException, e:
-        print "Service call failed: %s"%e
+        print ("service:"+str(resp2.entityList))
+    except rospy.ServiceException as e:
+        print ("Service call failed: %s", e)
 
     
     pub.publish(msg_im2)

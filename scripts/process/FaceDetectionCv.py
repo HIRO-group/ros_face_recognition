@@ -29,14 +29,13 @@ class FaceDetectionCv:
             )
             #flags = 
         except  cv2.error as e:
-            print "----------------------------------------------------------------------------------------------------------------------------------------------->exception occurs during face detection process"   
+            print ("----------------------------------------------------------------------------------------------------------------------------------------------->exception occurs during face detection process"   )
         print("Found {0} faces!".format(len(faces)))
-
         result=[]
         
         for (x, y, w, h) in faces:
-            result.append(( long(y) ,long(x+h) ,long(y+w) ,long(x) ))
-            
+            # result.append(( long(y) ,long(x+h) ,long(y+w) ,long(x) ))
+            result.append((y, x+h, y+w, x))
         return result
 
 

@@ -4,7 +4,8 @@ import os
 import sys
 
 import numpy as np
-from cv_bridge import CvBridge, CvBridgeError
+# from cv_bridge import CvBridge, CvBridgeError
+from misty_wrapper import py3_cv_bridge
 
 #sys.path.append(os.path.dirname(__file__) + "/../pose-tensorflow/")
 #sys.path.append("/opt/ros/kinetic/lib/python2.7/dist-packages/")
@@ -59,7 +60,8 @@ class PeopleFaceIdentificationSimple():
 
     def __init__(self):
         rospy.init_node('people_face_identification_simple', anonymous=False)
-        self._bridge = CvBridge()
+        # self._bridge = CvBridge()
+        self._bridge = py3_cv_bridge
         rospy.loginfo('CV bridge')
         self.configure()
 
@@ -172,28 +174,28 @@ class PeopleFaceIdentificationSimple():
     #######################################################################
     def process_img_faces_only(self,data):
         detected_faces_map={}
-        try:
-                # Conver image to numpy array
-                frame = self._bridge.imgmsg_to_cv2(data, 'bgr8')
-                frame_copy = self._bridge.imgmsg_to_cv2(data, 'bgr8')
+        # try:
+        # Conver image to numpy array
+        frame = self._bridge.imgmsg_to_cv2(data, 'bgr8')
+        frame_copy = self._bridge.imgmsg_to_cv2(data, 'bgr8')
 
 
-                if self.face_detection_mode==2:
-                    face_locations = face_recognition.face_locations(frame, number_of_times_to_upsample=0, model="cnn")
-                elif self.face_detection_mode==1:
-                    face_locations = face_recognition.face_locations(frame)
-                else:
-                    face_locations= self.cascadeHaarFaceDetection.processImg(frame)
-                i=0
-                for location in face_locations:
-                    detected_faces_map[i]=(location[0], location[1], location[2], location[3])
-                    i=i+1
-                    # Draw a box around the face
-                    cv2.rectangle(frame, (location[3], location[0]), (location[1], location[2]), (0, 255, 0), 2)
-                return frame,detected_faces_map
-        except CvBridgeError as e:
-                    rospy.logwarn(e)
-                    return "no Value"
+        if self.face_detection_mode==2:
+            face_locations = face_recognition.face_locations(frame, number_of_times_to_upsample=0, model="cnn")
+        elif self.face_detection_mode==1:
+            face_locations = face_recognition.face_locations(frame)
+        else:
+            face_locations= self.cascadeHaarFaceDetection.processImg(frame)
+        i=0
+        for location in face_locations:
+            detected_faces_map[i]=(location[0], location[1], location[2], location[3])
+            i=i+1
+            # Draw a box around the face
+            cv2.rectangle(frame, (location[3], location[0]), (location[1], location[2]), (0, 255, 0), 2)
+        return frame,detected_faces_map
+        # except CvBridgeError as e:
+        #             rospy.logwarn(e)
+        #             return "no Value"
                         #time.sleep(10)
 
     #######################################################################
@@ -209,104 +211,103 @@ class PeopleFaceIdentificationSimple():
             label_r='NONE'
             if(current_status== None):
                 current_status=self.STATUS
-            try:
-                # Conver image to numpy array
-                frame = self._bridge.imgmsg_to_cv2(data, 'bgr8')
-                frame_copy = self._bridge.imgmsg_to_cv2(data, 'bgr8')
+            # Conver image to numpy array
+            frame = self._bridge.imgmsg_to_cv2(data, 'bgr8')
+            frame_copy = self._bridge.imgmsg_to_cv2(data, 'bgr8')
 
-                if not isImgFace:
-                    if self.face_detection_mode==2:
-                        face_locations = face_recognition.face_locations(frame, number_of_times_to_upsample=0, model="cnn")
-                    elif self.face_detection_mode==1:
-                        face_locations = face_recognition.face_locations(frame)
-                    else:
-                        face_locations= self.cascadeHaarFaceDetection.processImg(frame)
-                        #rospy.logwarn(face_locations)
+            if not isImgFace:
+                if self.face_detection_mode==2:
+                    face_locations = face_recognition.face_locations(frame, number_of_times_to_upsample=0, model="cnn")
+                elif self.face_detection_mode==1:
+                    face_locations = face_recognition.face_locations(frame)
                 else:
-                    face_locations=[]
-                    face_locations.append((long(0), long(0 + frame.shape[0]), long(0 + frame.shape[1]), long(0)))
+                    face_locations= self.cascadeHaarFaceDetection.processImg(frame)
+                    #rospy.logwarn(face_locations)
+            else:
+                face_locations=[]
+                face_locations.append((long(0), long(0 + frame.shape[0]), long(0 + frame.shape[1]), long(0)))
 
-                i=0
-                for location in face_locations:
-                    i=i+1
+            i=0
+            for location in face_locations:
+                i=i+1
 
-                if i==0:
-                    rospy.logdebug("NO FACE DETECTED ON THE CURRENT IMG")
-
-
-                #if isImgFace:
-                #    face_encodings = face_recognition.face_encodings(frame)
-                #else:
-                face_encodings = face_recognition.face_encodings(frame, face_locations)
-
-                # Find all the faces and face enqcodings in the frame of video
-                top_r=0
-                bottom_r=0
-                left_r=0
-                right_r=0
-
-                # Loop through each face in this frame oisFaceDetectionf video
-                for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-                    # See if the face is a match for the known face(s)
-
-                    name,distance = self._processDetectFace(top, right, bottom, left,face_encoding)
-                    current_face=Face.Face(top,left,bottom,right,name,distance)
-                    detected_faces_list.append(current_face)
-
-                    rospy.logdebug("STATUS: "+current_status)
-                    if (current_status==self.LEARNING_STATUS and name == "Unknown") or (self.continuous_learn and name == "Unknown") or (current_status==self.FORCE_LEARNING_STATUS):
-
-                        label_tmp=str(uuid.uuid1())
-                        rospy.loginfo("unknown face: launch learn operation")
-                        self._processLearnFace(top, right, bottom, left,face_encoding,label_tmp,frame_copy,new_learnt_face)
-                    label_r=name
-                    # Draw a box around the face
-                    cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-
-                    # Draw a label with a name below the face
-                    cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-                    font = cv2.FONT_HERSHEY_DUPLEX
-                    cv2.putText(frame, str(round(distance*100,1))+"% "+name, (left + 6, bottom - 6), font, 0.8, (255, 255, 255), 1)
-
-                    x0, y0 =self._processBoxCenter(top, right, bottom, left)
-                    cv2.circle(frame, (x0, y0), 5, (0, 255, 0), cv2.FILLED)
-                    top_r=top
-                    bottom_r=bottom
-                    left_r=left
-                    right_r=right
-                    #return frame,name,top,left,bottom,right
-
-                #update label
-                if name_w== None:
-                    _labelToLearn=self.labelToLearn
-                else:
-                    _labelToLearn=name_w
-
-                #check the biggest face learnt
-                if not self.continuous_learn:
-                    max_box=0
-                    biggest_face=None
-                    for f in new_learnt_face:
-                        if max_box<f.size:
-                            max_box=f.size
-                            biggest_face=f
-                    if len(new_learnt_face)>0:
-                        self.STATUS!='LEARNT'
-                        oldId=biggest_face.label
-                        del self.faceList[oldId]
-                        biggest_face.label=_labelToLearn
-                        self.faceList[_labelToLearn]=biggest_face
-                        rospy.loginfo("")
-                        os.rename(self.FACE_FOLDER_AUTO+"/"+oldId+'.png', self.FACE_FOLDER_AUTO+"/"+_labelToLearn+'.png')
-                        rospy.loginfo("BIGGEST FACE of "+str(len(new_learnt_face))+":"+biggest_face.label)
+            if i==0:
+                rospy.logdebug("NO FACE DETECTED ON THE CURRENT IMG")
 
 
+            #if isImgFace:
+            #    face_encodings = face_recognition.face_encodings(frame)
+            #else:
+            face_encodings = face_recognition.face_encodings(frame, face_locations)
 
-                return frame,label_r,top_r,left_r,bottom_r,right_r,detected_faces_list
-            except CvBridgeError as e:
-                    rospy.logwarn(e)
-                    return "no Value"
-                        #time.sleep(10)
+            # Find all the faces and face enqcodings in the frame of video
+            top_r=0
+            bottom_r=0
+            left_r=0
+            right_r=0
+
+            # Loop through each face in this frame oisFaceDetectionf video
+            for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+                # See if the face is a match for the known face(s)
+
+                name,distance = self._processDetectFace(top, right, bottom, left,face_encoding)
+                current_face=Face.Face(top,left,bottom,right,name,distance)
+                detected_faces_list.append(current_face)
+
+                rospy.logdebug("STATUS: "+current_status)
+                if (current_status==self.LEARNING_STATUS and name == "Unknown") or (self.continuous_learn and name == "Unknown") or (current_status==self.FORCE_LEARNING_STATUS):
+
+                    label_tmp=str(uuid.uuid1())
+                    rospy.loginfo("unknown face: launch learn operation")
+                    self._processLearnFace(top, right, bottom, left,face_encoding,label_tmp,frame_copy,new_learnt_face)
+                label_r=name
+                # Draw a box around the face
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+                # Draw a label with a name below the face
+                cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(frame, str(round(distance*100,1))+"% "+name, (left + 6, bottom - 6), font, 0.8, (255, 255, 255), 1)
+
+                x0, y0 =self._processBoxCenter(top, right, bottom, left)
+                cv2.circle(frame, (x0, y0), 5, (0, 255, 0), cv2.FILLED)
+                top_r=top
+                bottom_r=bottom
+                left_r=left
+                right_r=right
+                #return frame,name,top,left,bottom,right
+
+            #update label
+            if name_w== None:
+                _labelToLearn=self.labelToLearn
+            else:
+                _labelToLearn=name_w
+
+            #check the biggest face learnt
+            if not self.continuous_learn:
+                max_box=0
+                biggest_face=None
+                for f in new_learnt_face:
+                    if max_box<f.size:
+                        max_box=f.size
+                        biggest_face=f
+                if len(new_learnt_face)>0:
+                    self.STATUS!='LEARNT'
+                    oldId=biggest_face.label
+                    del self.faceList[oldId]
+                    biggest_face.label=_labelToLearn
+                    self.faceList[_labelToLearn]=biggest_face
+                    rospy.loginfo("")
+                    os.rename(self.FACE_FOLDER_AUTO+"/"+oldId+'.png', self.FACE_FOLDER_AUTO+"/"+_labelToLearn+'.png')
+                    rospy.loginfo("BIGGEST FACE of "+str(len(new_learnt_face))+":"+biggest_face.label)
+
+
+
+            return frame,label_r,top_r,left_r,bottom_r,right_r,detected_faces_list
+            # except CvBridgeError as e:
+            #         rospy.logwarn(e)
+            #         return "no Value"
+            #             #time.sleep(10)
 
 
     #######################################################################
